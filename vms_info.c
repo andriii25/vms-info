@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <malloc.h>
+#include <getopt.h>
+#include <errno.h>
 #include "color16.h"
 #include "lodepng.h"
 
 
 #define LOG_POS(x) fprintf(stderr, "POS 0x%x\n", ftell(x))
+#define LOG_ERR(x, ...) fprintf(stderr, __VA_ARGS__)
 
 typedef struct header_metadata
 {
@@ -19,19 +22,21 @@ typedef struct header_metadata
     uint32_t file_after;
 } header_metadata;
 
-void init_metadata (header_metadata* metadata, FILE* input, int isData);
+void read_metadata (header_metadata* metadata, FILE* input, int isData);
 void save_icons(FILE* input, const int icon_count);
 
 int main(int argc, char** argv)
 {
     //TODO: Options
     //TODO: Error checking
+
+    int isData = 0;
     if (argc <= 1)
     {
         printf("You have not specified a file.\n");
         printf("USAGE: vms-icon [filename]\n");
         // No such file or directory
-        return 2;
+        return ENOENT;
 
     }
 
@@ -40,11 +45,12 @@ int main(int argc, char** argv)
     if (input == NULL)
     {
         fprintf(stderr, "Error opening %s", argv[1]);
+        return EIO;
     }
 
     header_metadata* meta = (header_metadata*) malloc(sizeof(header_metadata));
 
-    init_metadata(meta, input, 0);
+    read_metadata(meta, input, isData);
     save_icons(input, meta->icon_count);
 
     fclose(input);
@@ -52,7 +58,7 @@ int main(int argc, char** argv)
     return 0;
 }
 
-void init_metadata(header_metadata* metadata, FILE* input, int isData)
+void read_metadata(header_metadata* metadata, FILE* input, int isData)
 {
     // Data files' header starts at 0x200 rather than the begining
     if (isData)
