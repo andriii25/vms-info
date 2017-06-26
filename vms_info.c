@@ -7,7 +7,8 @@
 
 
 #define LOG_POS(x) fprintf(stderr, "POS 0x%x\n", ftell(x))
-#define LOG_ERR(x, ...) fprintf(stderr, __VA_ARGS__)
+#define LOG_ERRF(x, ...) fprintf(stderr, __VA_ARGS__)
+#define LOG_ERR(x) fprintf(stderr, x)
 
 typedef struct header_metadata
 {
@@ -30,27 +31,67 @@ int main(int argc, char** argv)
     //TODO: Options
     //TODO: Error checking
 
-    int isData = 0;
-    if (argc <= 1)
-    {
-        printf("You have not specified a file.\n");
-        printf("USAGE: vms-icon [filename]\n");
-        // No such file or directory
-        return ENOENT;
+    int isGame = 0;
+    int isForced = 0;
 
+    //TODO: Struct to hold options
+    int opt;
+    while ((opt = getopt(argc, argv, "gfh")) != -1)
+    {
+        switch (opt)
+        {
+            case 'g':
+                isGame = 1;
+                break;
+            case 'f':
+                isForced = 1;
+                break;
+            case 'h':
+                printf("Extracts icons from a VMS file header\n"
+                               "USAGE: vms-info [options...] filename\n"
+                               "Options:\n"
+                               "-g |        For extracting from game VMS files\n"
+                               "-f |        Forcing extract from VMS file\n"
+                               "-h |        Prints this message\n");
+                return 0;
+            case '?':
+                LOG_ERRF("Unknown option -%c", optopt);
+                return EINVAL;
+            default:
+                return EINVAL;
+        }
     }
 
+    if (optind == argc)
+    {
+        LOG_ERR("You have not specified a file.\n");
+        LOG_ERR("USAGE: vms-icon [options...] [filename]\n");
+        // No such file or directory
+        return ENOENT;
+    }
+
+
     FILE* input;
-    input = fopen(argv[1], "rb");
+    input = fopen(argv[optind], "rb");
     if (input == NULL)
     {
-        fprintf(stderr, "Error opening %s", argv[1]);
+        LOG_ERRF("Error opening %s", argv[optind]);
         return EIO;
     }
 
     header_metadata* meta = (header_metadata*) malloc(sizeof(header_metadata));
 
-    read_metadata(meta, input, isData);
+    read_metadata(meta, input, isGame);
+
+    if (meta->icon_count >= 10 && !isForced)
+    {
+        LOG_ERRF("You've tried to print %i icons\n"
+                         "This is probably because you've run the program on"
+                         "a game file VMS.\n You should try using the -g option\n"
+                         "However if you want to ignore this you can use the -f option to run this anyway.", meta->icon_count);
+        return EPERM;
+    }
+
     save_icons(input, meta->icon_count);
 
     fclose(input);
@@ -58,10 +99,10 @@ int main(int argc, char** argv)
     return 0;
 }
 
-void read_metadata(header_metadata* metadata, FILE* input, int isData)
+void read_metadata(header_metadata* metadata, FILE* input, int isGame)
 {
-    // Data files' header starts at 0x200 rather than the begining
-    if (isData)
+    // Game files' header starts at 0x200 rather than the beginning
+    if (isGame)
     {
         fseek(input, 0x200, SEEK_SET);
     }
