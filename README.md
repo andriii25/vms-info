@@ -8,5 +8,11 @@ Uses the [lodepng](https://github.com/lvandeve/lodepng) library.
 
 # Usage
 
-`./vms-info <filename>`
+`./vms-info [options... ] <filename>`
 
+# Options
+
+| Option | Functionality                      |
+|:------:|:----------------------------------:|
+| -g     | For extracting from game VMS files |
+| -f     | Forcing extract from VMS file      |
